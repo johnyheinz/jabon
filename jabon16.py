@@ -2,7 +2,7 @@ import os
 import random
 from vkbottle.bot import Bot, Message
 
-#randomaddedstring
+#randomaddedstring123
 
 bot = Bot(os.environ['API_KEY'])
 
