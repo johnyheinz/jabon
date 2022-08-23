@@ -1,7 +1,5 @@
-from distutils.cmd import Command
 import os
 import random
-from typing import Tuple
 from vkbottle.bot import Bot, Message
 from vkbottle.dispatch.rules.base import CommandRule
 
@@ -24,5 +22,10 @@ async def roller(message: Message):
 @bot.on.message(CommandRule("echo",["!"],1,sep="  ")) #дубликация ввода (костыльный)
 async def echo_answer(message: Message):
     await message.answer(message.text[6:])
+
+@bot.on.message() #что-то типа логов
+async def logwrite(message: Message):
+    users_info = await bot.api.users.get(message.from_id)
+    await message.answer("{}".format(users_info[0].first_name)+" исполнил: "+message.text)    
 
 bot.run_forever()
