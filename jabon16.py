@@ -1,6 +1,5 @@
 import os
 import random
-from subprocess import STARTF_USESHOWWINDOW
 import game
 from vkbottle.bot import Bot, Message
 from vkbottle.dispatch.rules.base import CommandRule
@@ -13,7 +12,7 @@ bot = Bot(os.environ['API_KEY'])
 class NoBotMiddleware(BaseMiddleware[Message]): #проверка на ботов
     async def pre(self):
         if self.event.from_id < 0:
-            self.stop()
+            self.stop("bots are not allowed")
 
 class ErrorMiddleware(BaseMiddleware[Message]):
     async def post(self):
@@ -23,6 +22,10 @@ class ErrorMiddleware(BaseMiddleware[Message]):
             await self.event.answer("!roll [от a] [до b]")
         if (not self.handlers and self.event.text.startswith("!ssp")):
             await self.event.answer("!ssp [оружие: камень, ножницы, бумага|сложность: нормально, невозможно]")
+        if (not self.handlers and self.event.text.startswith("!id")):
+            await self.event.answer("!id [выдаёт ваш id]")
+        if (not self.handlers and (self.event.text.startswith("!cmd") or self.event.text.startswith("!help"))):
+            await self.event.answer("Список команд:\n !roll [от a] [до b] \n !echo [дублирует написанную фразу] \n !ssp [оружие: камень, ножницы, бумага|сложность: нормально, невозможно] \n !дайжабу [даёт 1 жабу] \n !id [выдаёт ваш id]")
         
 
 class MyCommandRule(ABCRule[Message]):
@@ -48,9 +51,9 @@ class MyCommandRule(ABCRule[Message]):
                     return False
                 return {"args": tuple(args)}
 
-@bot.on.message(text=['!help','!cmd']) #вызов списка доступных команд
+@bot.on.message(MyCommandRule("help")) #вызов списка доступных команд
 async def command_list(message: Message):
-    await message.answer("Список команд:\n !roll [от a] [до b] \n !echo [дублирует написанную фразу] \n !ssp [оружие: камень, ножницы, бумага|сложность: нормально, невозможно] \n !дайжабу [даёт 1 жабу]")
+    await message.answer("Список команд:\n !roll [от a] [до b] \n !echo [дублирует написанную фразу] \n !ssp [оружие: камень, ножницы, бумага|сложность: нормально, невозможно] \n !дайжабу [даёт 1 жабу] \n !id [выдаёт ваш id]")
 
 @bot.on.message(MyCommandRule("roll",2,sep=" ")) #алгоритмы у вольво (теперь настраивается лол)
 async def roller(message: Message):
@@ -77,9 +80,18 @@ async def sspgame(message: Message):
     print(f"\n {sspdiffculty} \n")
     await message.answer(game.ssp(sspweapon,sspdiffculty))
 
-@bot.on.message(CommandRule("дайжабу",["!"],0))
+@bot.on.message(MyCommandRule("дайжабу"))
 async def give_jaba(message: Message):
     await message.answer(attachment="photo-206500138_457239019") 
+
+@bot.on.message(MyCommandRule("id"))
+async def getmyid(message: Message):
+    await message.answer("Ваш id: "+"{}".format(message.from_id)) 
+
+@bot.on.message(MyCommandRule("test"))
+async def getmyid(message: Message):
+    if ("{}".format(message.from_id) == "107329243"): await message.answer("вы еблан")
+    else: await message.answer("вы не еблан")
 
 bot.labeler.message_view.register_middleware(ErrorMiddleware)
 bot.labeler.message_view.register_middleware(NoBotMiddleware)
