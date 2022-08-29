@@ -1,39 +1,73 @@
 import os
 import random
+from subprocess import STARTF_USESHOWWINDOW
+import game
 from vkbottle.bot import Bot, Message
 from vkbottle.dispatch.rules.base import CommandRule
+from vkbottle.dispatch.rules import ABCRule
 from vkbottle import BaseMiddleware
-import game
+from typing import Union
 
 bot = Bot(os.environ['API_KEY'])
 
-class LogMiddleware(BaseMiddleware[Message]):
+class NoBotMiddleware(BaseMiddleware[Message]): #проверка на ботов
+    async def pre(self):
+        if self.event.from_id < 0:
+            self.stop()
+
+class ErrorMiddleware(BaseMiddleware[Message]):
     async def post(self):
-        if not self.handlers:
-            return
-        print("\n"+f"{self.handle_responses}"+"\n")
+        if (not self.handlers and self.event.text.startswith("!echo")):
+            await self.event.answer("!echo [дублирует написанную фразу]")
+        if (not self.handlers and self.event.text.startswith("!roll")):
+            await self.event.answer("!roll [от a] [до b]")
+        if (not self.handlers and self.event.text.startswith("!ssp")):
+            await self.event.answer("!ssp [оружие: камень, ножницы, бумага|сложность: нормально, невозможно]")
+        
+
+class MyCommandRule(ABCRule[Message]):
+    def __init__(
+        self,
+        command_text: str,
+        args_count: int = 0,
+        sep: str = " ",
+    ):
+        self.command_text = command_text if isinstance(command_text, str) else command_text[0]
+        self.args_count = args_count if isinstance(command_text, str) else command_text[1]
+        self.sep = sep
+
+    async def check(self, event: Message) -> Union[dict, bool]:
+            prefix = "!"
+            if self.args_count == 0 and event.text == prefix + self.command_text: #команда без аргументов = true всегда
+                return True
+            if self.args_count > 0 and event.text.startswith(prefix + self.command_text + " "):
+                args = event.text[len(prefix + self.command_text) + 1 :].split(self.sep)
+                if len(args) != self.args_count:
+                    return False
+                elif any(len(arg) == 0 for arg in args):
+                    return False
+                return {"args": tuple(args)}
 
 @bot.on.message(text=['!help','!cmd']) #вызов списка доступных команд
 async def command_list(message: Message):
-    await message.answer("Список команд:\n !roll [от a до b] \n !echo [дублирует написанную фразу] \n !ssp [оружие: камень, ножницы, бумага|сложность: нормально, невозможно]")
+    await message.answer("Список команд:\n !roll [от a] [до b] \n !echo [дублирует написанную фразу] \n !ssp [оружие: камень, ножницы, бумага|сложность: нормально, невозможно] \n !дайжабу [даёт 1 жабу]")
 
-@bot.on.message(CommandRule("roll",["!"],2,sep=" ")) #алгоритмы у вольво (теперь настраивается лол)
+@bot.on.message(MyCommandRule("roll",2,sep=" ")) #алгоритмы у вольво (теперь настраивается лол)
 async def roller(message: Message):
     users_info = await bot.api.users.get(message.from_id)
     rollstring = message.text[6:]
     rollstring = rollstring.strip()
     rollstring = rollstring.split()
-    a = int(rollstring[0])
-    b = int(rollstring[1])
-    await message.answer("{}".format(users_info[0].first_name)+" rolls: "+"{}".format(random.randint(a,b)))
+    if ((type(rollstring[0]) is int) and (type(rollstring[1]) is int)): await message.answer("{}".format(users_info[0].first_name)+" rolls: "+"{}".format(random.randint(rollstring[0],rollstring[1])))
+    else: await message.answer("!roll [от a] [до b]")
 
-@bot.on.message(CommandRule("echo",["!"],1,sep="  ")) #дубликация ввода (костыльный)
+@bot.on.message(MyCommandRule("echo",1,sep="  ")) #дубликация ввода (костыльный)
 async def echo_answer(message: Message):
-    await message.answer(message.text[6:])
-
-@bot.on.message(CommandRule("ssp",["!"],2,sep=" ")) #первая типа игра или что-то такое, скорее тест подключаемых модулей
+    if (len(message.text)>4): await message.answer(message.text[6:])
+    else: message.answer("!echo [дублирует написанную фразу]")
+        
+@bot.on.message(MyCommandRule("ssp",2,sep=" ")) #первая типа игра или что-то такое, скорее тест подключаемых модулей
 async def sspgame(message: Message):
-    users_info = await bot.api.users.get(message.from_id)
     sspstring = message.text[5:]
     sspstring = sspstring.strip()
     sspstring = sspstring.split()
@@ -43,5 +77,10 @@ async def sspgame(message: Message):
     print(f"\n {sspdiffculty} \n")
     await message.answer(game.ssp(sspweapon,sspdiffculty))
 
-bot.labeler.message_view.register_middleware(LogMiddleware)
+@bot.on.message(CommandRule("дайжабу",["!"],0))
+async def give_jaba(message: Message):
+    await message.answer(attachment="photo-206500138_457239019") 
+
+bot.labeler.message_view.register_middleware(ErrorMiddleware)
+bot.labeler.message_view.register_middleware(NoBotMiddleware)
 bot.run_forever()
