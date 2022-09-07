@@ -1,13 +1,21 @@
 import os
 import random
 import game
+import tenorgif
 from vkbottle.bot import Bot, Message
-from vkbottle.dispatch.rules.base import CommandRule
 from vkbottle.dispatch.rules import ABCRule
-from vkbottle import BaseMiddleware
+from vkbottle import BaseMiddleware, Keyboard, KeyboardButtonColor, Text
 from typing import Union
+from vkbottle.tools import template_gen, TemplateElement
+from vkbottle.tools import DocMessagesUploader
 
 bot = Bot(os.environ['API_KEY'])
+
+keyboard = Keyboard(one_time=False, inline=False)
+keyboard.add(Text(label="!test"))
+keyboard.row()
+keyboard.add(Text("!дайжабу"), color=KeyboardButtonColor.POSITIVE)
+keyboard = keyboard.get_json()
 
 class NoBotMiddleware(BaseMiddleware[Message]): #проверка на ботов
     async def pre(self):
@@ -84,14 +92,36 @@ async def sspgame(message: Message):
 async def give_jaba(message: Message):
     await message.answer(attachment="photo-206500138_457239019") 
 
+@bot.on.message(MyCommandRule("дайкарусельжаб"))
+async def give_megajaba(message: Message):
+    my_template = template_gen(TemplateElement(title="жаба",description="да это реально жаба",photo_id="photo-206500138_457239019",action="None",buttons="жабы"))
+    await message.answer("К А Р У С Е Л Ь  Ж А Б", template=my_template)
+
 @bot.on.message(MyCommandRule("id"))
 async def getmyid(message: Message):
     await message.answer("Ваш id: "+"{}".format(message.from_id)) 
 
-@bot.on.message(MyCommandRule("test"))
-async def getmyid(message: Message):
-    if ("{}".format(message.from_id) == "107329243"): await message.answer("вы еблан")
-    else: await message.answer("вы не еблан")
+#@bot.on.message(MyCommandRule("клава"))
+#async def send_keyboard(message: Message):
+#   await message.answer("ДА", keyboard=keyboard)
+
+@bot.on.message(MyCommandRule("test",1))
+async def test_handler(message: Message):
+    if ("{}".format(message.from_id) == "107329243"): 
+         user_tag_gif = message.text[6:]
+         doc = await DocMessagesUploader(bot.api).upload(file_source=tenorgif.get_gif(user_tag_gif), title="faster_frog.gif", peer_id=message.peer_id)
+         await message.answer(attachment=doc)
+    else: await message.answer("вы не еблан чтобы это делать")
+
+@bot.on.message(MyCommandRule("gif",1,sep='  '))
+async def gif_dealer(message: Message):
+    user_tag_gif = message.text[5:]
+    doc = await DocMessagesUploader(bot.api).upload(file_source=tenorgif.get_gif(user_tag_gif), title=f"{user_tag_gif}"+'.gif', peer_id=message.peer_id)
+    await message.answer(attachment=doc)
+
+@bot.on.message(text="иди нахуй")
+async def reflection(message: Message):
+    await message.answer("сам иди")
 
 bot.labeler.message_view.register_middleware(ErrorMiddleware)
 bot.labeler.message_view.register_middleware(NoBotMiddleware)
