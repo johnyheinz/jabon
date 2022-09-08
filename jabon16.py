@@ -12,10 +12,12 @@ from vkbottle.tools import DocMessagesUploader
 bot = Bot(os.environ['API_KEY'])
 
 keyboard = Keyboard(one_time=False, inline=False)
-keyboard.add(Text(label="!test"))
+keyboard.add(Text(label="!помощь"), color=KeyboardButtonColor.PRIMARY)
 keyboard.row()
-keyboard.add(Text("!дайжабу"), color=KeyboardButtonColor.POSITIVE)
+keyboard.add(Text("!дайжабу"), color=KeyboardButtonColor.SECONDARY)
+keyboard.add(Text("!ролл"), color=KeyboardButtonColor.SECONDARY)
 keyboard = keyboard.get_json()
+
 
 class NoBotMiddleware(BaseMiddleware[Message]): #проверка на ботов
     async def pre(self):
@@ -24,16 +26,14 @@ class NoBotMiddleware(BaseMiddleware[Message]): #проверка на бото�
 
 class ErrorMiddleware(BaseMiddleware[Message]):
     async def post(self):
-        if (not self.handlers and self.event.text.startswith("!echo")):
-            await self.event.answer("!echo [дублирует написанную фразу]")
-        if (not self.handlers and self.event.text.startswith("!roll")):
-            await self.event.answer("!roll [от a] [до b]")
-        if (not self.handlers and self.event.text.startswith("!ssp")):
-            await self.event.answer("!ssp [оружие: камень, ножницы, бумага|сложность: нормально, невозможно]")
+        if (not self.handlers and self.event.text.startswith("!эхо")):
+            await self.event.answer("!эхо [дублирует написанную фразу]")
+        if (not self.handlers and self.event.text.startswith("!кнб")):
+            await self.event.answer("!кнб [оружие: камень, ножницы, бумага|сложность: нормально, невозможно]")
         if (not self.handlers and self.event.text.startswith("!id")):
             await self.event.answer("!id [выдаёт ваш id]")
-        if (not self.handlers and (self.event.text.startswith("!cmd") or self.event.text.startswith("!help"))):
-            await self.event.answer("Список команд:\n !roll [от a] [до b] \n !echo [дублирует написанную фразу] \n !ssp [оружие: камень, ножницы, бумага|сложность: нормально, невозможно] \n !дайжабу [даёт 1 жабу] \n !id [выдаёт ваш id]")
+        if (not self.handlers and self.event.text.startswith("!гиф")):
+            await self.event.answer("!гиф [тег] (отправляет гифку по заданному тегу)")
         
 
 class MyCommandRule(ABCRule[Message]):
@@ -59,25 +59,34 @@ class MyCommandRule(ABCRule[Message]):
                     return False
                 return {"args": tuple(args)}
 
-@bot.on.message(MyCommandRule("help")) #вызов списка доступных команд
-async def command_list(message: Message):
-    await message.answer("Список команд:\n !roll [от a] [до b] \n !echo [дублирует написанную фразу] \n !ssp [оружие: камень, ножницы, бумага|сложность: нормально, невозможно] \n !дайжабу [даёт 1 жабу] \n !id [выдаёт ваш id]")
+with open('cmd.txt', encoding="utf8") as file:
+    cmd_str = file.read()
+    file.close()
 
-@bot.on.message(MyCommandRule("roll",2,sep=" ")) #алгоритмы у вольво (теперь настраивается лол)
+@bot.on.message(MyCommandRule("помощь")) #вызов списка доступных команд
+async def command_list(message: Message):
+    await message.answer(cmd_str)
+
+@bot.on.message(MyCommandRule("ролл")) #алгоритмы у вольво (теперь настраивается лол)
+async def roller_no_arg(message: Message):
+   users_info = await bot.api.users.get(message.from_id)
+   await message.reply("{}".format(users_info[0].first_name)+" роллит: "+"{}".format(random.randint(0,100)))
+
+@bot.on.message(MyCommandRule("ролл",2,sep=" ")) #алгоритмы у вольво (теперь настраивается лол)
 async def roller(message: Message):
     users_info = await bot.api.users.get(message.from_id)
     rollstring = message.text[6:]
     rollstring = rollstring.strip()
     rollstring = rollstring.split()
-    if ((type(rollstring[0]) is int) and (type(rollstring[1]) is int)): await message.answer("{}".format(users_info[0].first_name)+" rolls: "+"{}".format(random.randint(rollstring[0],rollstring[1])))
-    else: await message.answer("!roll [от a] [до b]")
+    if (rollstring[0].isdigit() and rollstring[1].isdigit()): await message.reply("{}".format(users_info[0].first_name)+" rolls: "+"{}".format(random.randint(int(rollstring[0]),int(rollstring[1]))))
+    else: await message.reply("{}".format(users_info[0].first_name)+" роллит: "+"{}".format(random.randint(0,100)))
 
-@bot.on.message(MyCommandRule("echo",1,sep="  ")) #дубликация ввода (костыльный)
+@bot.on.message(MyCommandRule("эхо",1,sep="  ")) #дубликация ввода (костыльный)
 async def echo_answer(message: Message):
-    if (len(message.text)>4): await message.answer(message.text[6:])
-    else: message.answer("!echo [дублирует написанную фразу]")
+    if (len(message.text)>4): await message.answer(message.text[5:])
+    else: message.answer("!эхо [дублирует написанную фразу]")
         
-@bot.on.message(MyCommandRule("ssp",2,sep=" ")) #первая типа игра или что-то такое, скорее тест подключаемых модулей
+@bot.on.message(MyCommandRule("кнб",2,sep=" ")) #первая типа игра или что-то такое, скорее тест подключаемых модулей
 async def sspgame(message: Message):
     sspstring = message.text[5:]
     sspstring = sspstring.strip()
@@ -88,40 +97,45 @@ async def sspgame(message: Message):
     print(f"\n {sspdiffculty} \n")
     await message.answer(game.ssp(sspweapon,sspdiffculty))
 
-@bot.on.message(MyCommandRule("дайжабу"))
+@bot.on.message(MyCommandRule("дайжабу")) #даёт 1 жабу
 async def give_jaba(message: Message):
-    await message.answer(attachment="photo-206500138_457239019") 
+    await message.reply(attachment="photo-206500138_457239019") 
 
-@bot.on.message(MyCommandRule("дайкарусельжаб"))
+@bot.on.message(MyCommandRule("дайкарусельжаб")) #даёт вроде как целую карусель жаб
 async def give_megajaba(message: Message):
-    my_template = template_gen(TemplateElement(title="жаба",description="да это реально жаба",photo_id="photo-206500138_457239019",action="None",buttons="жабы"))
+    my_template = template_gen(TemplateElement(title="жаба.png",description="да это реально жаба",photo_id="photo-206500138_457239019",action="None",buttons="жабы"))
     await message.answer("К А Р У С Е Л Ь  Ж А Б", template=my_template)
 
-@bot.on.message(MyCommandRule("id"))
+@bot.on.message(MyCommandRule("id")) 
 async def getmyid(message: Message):
-    await message.answer("Ваш id: "+"{}".format(message.from_id)) 
+    users_info = await bot.api.users.get(message.from_id)
+    await message.answer("Ваш id: "+"{}\n".format(message.from_id))
 
-#@bot.on.message(MyCommandRule("клава"))
-#async def send_keyboard(message: Message):
-#   await message.answer("ДА", keyboard=keyboard)
+@bot.on.private_message(MyCommandRule("клава"))
+async def send_keyboard(message: Message):
+   await message.answer("Клавиатура выдана", keyboard=keyboard)
 
-@bot.on.message(MyCommandRule("test",1))
+@bot.on.message(MyCommandRule("test"))
 async def test_handler(message: Message):
     if ("{}".format(message.from_id) == "107329243"): 
-         user_tag_gif = message.text[6:]
-         doc = await DocMessagesUploader(bot.api).upload(file_source=tenorgif.get_gif(user_tag_gif), title="faster_frog.gif", peer_id=message.peer_id)
-         await message.answer(attachment=doc)
+
+         users_info = await bot.api.users.get(message.from_id)
+         await message.answer(
+            "Ваш id: "+"{}\n".format(message.from_id)+
+            "Дата регистрации: "+"{}".format(users_info[0])
+        ) 
+
     else: await message.answer("вы не еблан чтобы это делать")
 
-@bot.on.message(MyCommandRule("gif",1,sep='  '))
+@bot.on.message(MyCommandRule("гиф",1,sep='  ')) #парс гифок с тенора
 async def gif_dealer(message: Message):
     user_tag_gif = message.text[5:]
     doc = await DocMessagesUploader(bot.api).upload(file_source=tenorgif.get_gif(user_tag_gif), title=f"{user_tag_gif}"+'.gif', peer_id=message.peer_id)
-    await message.answer(attachment=doc)
+    await message.reply(attachment=doc)
 
-@bot.on.message(text="иди нахуй")
+@bot.on.message(text="иди нахуй") #искусственный интеллект
 async def reflection(message: Message):
-    await message.answer("сам иди")
+    await message.reply("сам иди")
 
 bot.labeler.message_view.register_middleware(ErrorMiddleware)
 bot.labeler.message_view.register_middleware(NoBotMiddleware)
