@@ -10,14 +10,14 @@ ckey = 'jabon gifs'
 img_url = 'https://c.tenor.com/RBf5874ArDoAAAAC/frog.gif'
 lmt = 25
 
-def get_gif(tag = 'amogus'):
+def get_gif(tag = '', acc = 10):
     response = requests.get(
-    "https://tenor.googleapis.com/v2/search?q=%s&key=%s&client_key=%s&limit=%s" % (tag, api_key, ckey,  lmt))
+    "https://tenor.googleapis.com/v2/search?q=%s&key=%s&client_key=%s&limit=%s" % (tag, api_key, ckey,  acc))
 
     if response.status_code == 200:
         data_json = json.loads(response.content)
-        gif_get = requests.get(data_json['results'][random.randint(0,lmt-1)]['media_formats']['gif']['url'])
-        with open('debug.gif','wb') as file:
+        gif_get = requests.get(data_json['results'][random.randint(0,int(acc)-1)]['media_formats']['gif']['url'])
+        with open('gifs/debug.gif','wb') as file:
             file.write(gif_get.content)
         with io.BytesIO() as gif_buff:
           gif_buff.write(gif_get.content)

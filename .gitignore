@@ -168,3 +168,11 @@ cython_debug/
 *.txt
 test2.txt
 debug.gif
+*.gif
+*.sh
+*.gif
+*.txt
+weather.py
+debug.gif
+debug.gif
+debug.gif
