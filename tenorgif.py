@@ -10,7 +10,7 @@ ckey = 'jabon gifs'
 img_url = 'https://c.tenor.com/RBf5874ArDoAAAAC/frog.gif'
 lmt = 25
 
-def get_gif(tag = '', acc = 10):
+def get_gif(tag = '', acc = 20):
     response = requests.get(
     "https://tenor.googleapis.com/v2/search?q=%s&key=%s&client_key=%s&limit=%s" % (tag, api_key, ckey,  acc))
 
