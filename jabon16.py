@@ -6,13 +6,18 @@ import json
 import tenorgif
 import jabwiki
 import jabondb_m
+
 from datetime import timedelta
 from typing import List
 from vkbottle.bot import Bot, Message
 from vkbottle.dispatch.rules import ABCRule
+from vkbottle.dispatch.rules.base import MentionRule
 from vkbottle import BaseMiddleware, Keyboard, KeyboardButtonColor, Text, GroupEventType, GroupTypes, Bot, VKAPIError
 from vkbottle.tools import template_gen, TemplateElement
 from vkbottle.tools import DocMessagesUploader
+from vkbottle_types.objects import MessagesForward
+
+from chitchat import dialogue
 
 bot = Bot(os.environ['API_KEY'])
 servtoken = (os.environ['API_SERVICE_KEY'])
@@ -277,6 +282,17 @@ async def test_handler(message: Message):
         users_info = await bot.api.users.get('207191498','city')
         await message.answer(f'{users_info[0].first_name} {users_info[0].last_name}: {users_info[0].city.title}')
     else: await message.answer("вы не еблан чтобы это делать")
+
+# читчат
+@bot.on.message(MentionRule())
+async def chitchat_handler(message: Message):
+    answer = await dialogue.get(message.text, message.from_id)
+    forward = MessagesForward(
+        conversation_message_ids=[message.conversation_message_id], 
+        peer_id=message.peer_id, 
+        is_reply=True
+    ).json()
+    await message.answer(answer, forward=forward)
 
 bot.labeler.message_view.register_middleware(ErrorMiddleware)
 bot.labeler.message_view.register_middleware(NoBotMiddleware)
